@@ -13,10 +13,25 @@ envelope.
 GigE Vision (вид сверху) измеряет планарную геометрию и отбраковывает детали,
 выходящие за пределы обученного допуска.
 
-> **Single 2D view only.** Depth is **not** measurable from this nadir view.
-> We measure planar features only — diameters, concentricity, roundness,
-> base squareness. No pocket/hole depth.
-> **Только один 2D-вид.** Глубина **не** измеряется; только планарные признаки.
+**Nominal part geometry / Номинальная геометрия детали:**
+
+| Feature / Признак | Nominal / Номинал |
+|-------------------|-------------------|
+| Square base / Квадратное основание | 100 × 100 mm |
+| Block height / Высота блока | 60 mm (not measured / не измеряется) |
+| Outer recessed circle Ø / Внешний круг | 75 mm |
+| Inner shallow pocket Ø / Внутренний карман | 60 mm |
+| Center hole Ø / Центральное отверстие | 25 mm |
+
+> **Single 2D view only.** Depth (the 60 mm height, pocket/hole depth) is **not**
+> measurable from this nadir view. We measure planar features only — diameters,
+> concentricity, roundness, base squareness.
+> **Только один 2D-вид.** Глубина (высота 60 мм) **не** измеряется; только
+> планарные признаки.
+
+The synthetic demo (`demo.py`) renders these exact nominals at 0.10 mm/pixel, so
+measured diameters read ~25 / 60 / 75 mm against known ground truth.
+/ Демо рендерит эти номиналы при 0.10 мм/пиксель для проверки по эталону.
 
 ---
 

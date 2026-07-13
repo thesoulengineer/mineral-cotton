@@ -29,7 +29,7 @@ SAMPLES_DIR = "samples"
 # --------------------------------------------------------------------------- #
 def render_checkerboard(
     cols: int, rows: int, square_px: int, warp: float = 0.0, seed: int = 0,
-    image_size: tuple = (720, 720),
+    image_size: tuple = (1200, 1200),
 ) -> np.ndarray:
     """Render a checkerboard with (cols x rows) *inner* corners on the camera frame.
 
@@ -76,34 +76,35 @@ def generate_samples() -> None:
     os.makedirs(os.path.join(SAMPLES_DIR, "repeat"), exist_ok=True)
     os.makedirs(os.path.join(SAMPLES_DIR, "defects"), exist_ok=True)
 
-    # Checkerboard views (9x6 inner corners, 5 mm squares assumed in config),
-    # rendered at the same 720x720 resolution as the part frames.
+    # Checkerboard views (9x6 inner corners, 5 mm squares -> config), rendered at
+    # the same 1200x1200 resolution as part frames. 50 px/square => 0.10 mm/px.
     for i in range(10):
-        board = render_checkerboard(9, 6, square_px=52, warp=0.012 * (1 + i % 4), seed=i)
+        board = render_checkerboard(9, 6, square_px=50, warp=0.012 * (1 + i % 4), seed=i)
         cv2.imwrite(os.path.join(SAMPLES_DIR, "checkerboard", f"cb_{i:02d}.png"), board)
 
     rng = np.random.default_rng(42)
 
     def good_part(seed: int) -> np.ndarray:
-        # Nominal part with small, realistic part-to-part variation.
-        # / Номинальная деталь с небольшой реалистичной вариацией.
+        # Nominal part (75/60/25 mm circles, 100 mm base at 0.10 mm/px) with
+        # small, realistic part-to-part variation.
+        # / Номинальная деталь (75/60/25 мм) с небольшой реалистичной вариацией.
         return render_synthetic_part(
-            outer_d_px=380.0 + rng.normal(0, 2.0),
-            pocket_d_px=240.0 + rng.normal(0, 1.5),
-            hole_d_px=90.0 + rng.normal(0, 1.0),
-            center_jitter_px=(rng.normal(0, 1.0), rng.normal(0, 1.0)),
+            outer_d_px=750.0 + rng.normal(0, 3.0),
+            pocket_d_px=600.0 + rng.normal(0, 2.5),
+            hole_d_px=250.0 + rng.normal(0, 2.0),
+            center_jitter_px=(rng.normal(0, 1.5), rng.normal(0, 1.5)),
             ellipticity=1.0 + rng.normal(0, 0.004),
             seed=seed,
         )
 
-    for i in range(20):
+    for i in range(40):
         cv2.imwrite(os.path.join(SAMPLES_DIR, "good_train", f"good_{i:02d}.png"), good_part(1000 + i))
-    for i in range(10):
+    for i in range(20):
         cv2.imwrite(os.path.join(SAMPLES_DIR, "good_holdout", f"good_{i:02d}.png"), good_part(2000 + i))
 
     # Repeatability: the SAME static part imaged many times (only sensor noise).
     # / Повторяемость: одна и та же деталь, меняется только шум сенсора.
-    for i in range(15):
+    for i in range(20):
         cv2.imwrite(
             os.path.join(SAMPLES_DIR, "repeat", f"rep_{i:02d}.png"),
             render_synthetic_part(seed=None),
@@ -113,9 +114,9 @@ def generate_samples() -> None:
     # out-of-round outer feature.
     # / Дефекты: увеличенное отверстие, нарушенная соосность, овальность.
     cv2.imwrite(os.path.join(SAMPLES_DIR, "defects", "hole_oversize.png"),
-                render_synthetic_part(hole_d_px=130.0, seed=7))
+                render_synthetic_part(hole_d_px=320.0, seed=7))   # 32 mm vs 25 mm
     cv2.imwrite(os.path.join(SAMPLES_DIR, "defects", "eccentric_hole.png"),
-                render_synthetic_part(hole_offset_px=(22.0, 16.0), seed=8))
+                render_synthetic_part(hole_offset_px=(45.0, 32.0), seed=8))  # ~5.5 mm
     cv2.imwrite(os.path.join(SAMPLES_DIR, "defects", "out_of_round.png"),
                 render_synthetic_part(ellipticity=0.86, seed=9))
     print(f"[demo] samples written under '{SAMPLES_DIR}/'")

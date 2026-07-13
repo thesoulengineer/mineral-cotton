@@ -29,18 +29,22 @@ import numpy as np
 # --------------------------------------------------------------------------- #
 # Synthetic part renderer / Синтетический рендер детали
 # --------------------------------------------------------------------------- #
+# Nominal part geometry (real drawing) at the demo scale of 0.10 mm/pixel:
+#   square base 100 mm, outer circle 75 mm, pocket 60 mm, hole 25 mm.
+# / Номинальная геометрия детали при масштабе 0.10 мм/пиксель.
 def render_synthetic_part(
-    image_size: tuple = (720, 720),
-    outer_d_px: float = 380.0,
-    pocket_d_px: float = 240.0,
-    hole_d_px: float = 90.0,
+    image_size: tuple = (1200, 1200),
+    outer_d_px: float = 750.0,     # 75 mm outer recessed circle
+    pocket_d_px: float = 600.0,    # 60 mm inner shallow pocket
+    hole_d_px: float = 250.0,      # 25 mm center hole
+    base_side_px: float = 1000.0,  # 100 mm square base
     center: Optional[tuple] = None,
     center_jitter_px: tuple = (0.0, 0.0),
     hole_offset_px: tuple = (0.0, 0.0),
     ellipticity: float = 1.0,
     noise_sigma: float = 2.0,
     brightness: float = 200.0,
-    edge_softness: float = 1.2,
+    edge_softness: float = 1.5,
     seed: Optional[int] = None,
 ) -> np.ndarray:
     """Render a mono frame resembling the mineral-wool part.
@@ -62,7 +66,7 @@ def render_synthetic_part(
     cy += center_jitter_px[1]
 
     # Square base (bright plate) / квадратное основание (светлая плита).
-    half = int(min(h, w) * 0.46)
+    half = int(round(base_side_px / 2.0))
     cv2.rectangle(
         img,
         (int(w / 2 - half), int(h / 2 - half)),

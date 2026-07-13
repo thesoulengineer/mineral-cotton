@@ -147,7 +147,7 @@ def default_config() -> Dict[str, Any]:
                 "param1": 60,
                 "param2": 30,
                 "min_radius_px": 8,
-                "max_radius_px": 250,
+                "max_radius_px": 550,
             },
             "expected_circles": 3,
             # Edge + contour refinement parameters / параметры уточнения по контуру.
@@ -172,7 +172,7 @@ def default_config() -> Dict[str, Any]:
             # Max distance (px) a feature center may sit from the Hough coarse
             # center to be accepted — large enough to admit an eccentric hole.
             # / Макс. отклонение центра признака от грубого центра Hough.
-            "center_tol_px": 60.0,
+            "center_tol_px": 100.0,
         },
         "contrast": {
             "min_mean_intensity": 25.0,
@@ -531,15 +531,19 @@ def base_squareness(
 ) -> Optional[float]:
     """Max corner-angle deviation (degrees) of the square base from 90 deg.
 
-    Finds the largest 4-vertex convex contour (the base outline) and measures
-    how far each interior corner departs from a right angle. Returns None if a
-    convincing quadrilateral is not found.
-    / Максимальное отклонение углов квадратного основания от 90 градусов.
+    Robust measurement: locate the base outline, split it into four sides at the
+    quadrilateral corners, and fit each side as a line over all its contour
+    points (cv2.fitLine). The angle between adjacent fitted sides is compared to
+    90 deg. Fitting whole edges — instead of trusting four approxPolyDP vertices
+    — averages out corner-pixel noise, so the metric is stable on soft edges.
+    Returns None if a convincing quadrilateral is not found.
+    / Робастно: стороны основания подгоняются прямыми (fitLine) по всем точкам;
+      угол между соседними сторонами сравнивается с 90°. Устойчиво к шуму краёв.
     """
     # Binarize and take the largest external contour as the base outline.
     # / Бинаризация; крупнейший внешний контур — основание.
     _thr, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     if not contours:
         return None
     base = max(contours, key=cv2.contourArea)
@@ -547,16 +551,38 @@ def base_squareness(
     approx = cv2.approxPolyDP(base, 0.02 * peri, True)
     if len(approx) != 4:
         return None
-    pts = approx.reshape(4, 2).astype(np.float64)
+
+    pts = base.reshape(-1, 2).astype(np.float64)
+    corners = approx.reshape(-1, 2).astype(np.float64)
+    # Locate each corner's position along the (ordered) contour.
+    # / Находим индексы углов вдоль упорядоченного контура.
+    corner_idx = sorted(int(np.argmin(np.sum((pts - c) ** 2, axis=1))) for c in corners)
+
+    def _side_direction(a: int, b: int) -> Optional[np.ndarray]:
+        seg = pts[a:b + 1] if a < b else np.vstack([pts[a:], pts[:b + 1]])
+        if len(seg) < 8:
+            return None
+        # Drop ~15% at each end so rounded corner pixels do not bias the line.
+        # / Отбрасываем ~15% у концов, чтобы скруглённые углы не влияли.
+        trim = max(1, int(0.15 * len(seg)))
+        seg = seg[trim:-trim]
+        if len(seg) < 2:
+            return None
+        line = cv2.fitLine(seg.astype(np.float32), cv2.DIST_L2, 0, 0.01, 0.01)
+        return np.array([float(line[0, 0]), float(line[1, 0])], dtype=np.float64)
+
+    dirs = []
+    for i in range(4):
+        d = _side_direction(corner_idx[i], corner_idx[(i + 1) % 4])
+        if d is None:
+            return None
+        dirs.append(d)
+
     max_dev = 0.0
     for i in range(4):
-        p_prev = pts[(i - 1) % 4]
-        p_cur = pts[i]
-        p_next = pts[(i + 1) % 4]
-        v1 = p_prev - p_cur
-        v2 = p_next - p_cur
-        cos_a = float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-9))
-        cos_a = max(-1.0, min(1.0, cos_a))
-        angle = np.degrees(np.arccos(cos_a))
-        max_dev = max(max_dev, abs(angle - 90.0))
+        d1, d2 = dirs[i], dirs[(i + 1) % 4]
+        cos_a = abs(float(np.dot(d1, d2)))  # lines: use acute angle / острый угол
+        cos_a = min(1.0, max(0.0, cos_a))
+        angle_between = np.degrees(np.arccos(cos_a))  # 90 deg for a true square
+        max_dev = max(max_dev, abs(90.0 - angle_between))
     return float(max_dev)
