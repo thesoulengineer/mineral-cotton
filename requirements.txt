@@ -3,7 +3,12 @@
 numpy>=1.23
 opencv-python>=4.6        # use opencv-python-headless on headless servers
 
-# Optional: GigE Vision acquisition backend (GenICam/Harvester).
-# Install on the production station; the code falls back gracefully without it.
-# / Необязательно: бэкенд захвата GigE Vision (GenICam/Harvester).
+# Acquisition backends are NOT pip packages:
+#   * Primary: Huaray MV Viewer SDK (vendor IMVApi.py/IMVDefines.py + runtime
+#     DLLs). Install the SDK on the station and set camera.sdk_path in
+#     config.json. See README section "Camera SDK setup".
+#   * Optional: Harvester (vendor-neutral GenICam) — pip install harvesters
+# The code falls back to a synthetic/directory source when neither is present.
+# / Бэкенды захвата не ставятся через pip: основной — SDK Huaray MV Viewer,
+#   дополнительный — harvesters. Без них — синтетика/файлы.
 # harvesters>=1.4

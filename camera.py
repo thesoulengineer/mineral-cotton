@@ -1,24 +1,25 @@
-"""camera.py — GigE Vision acquisition wrapper.
+"""camera.py — industrial-camera acquisition wrapper.
 
-Assumption / Допущение:
-  The plant camera is a GigE Vision device driven through GenICam via the
-  Harvester library (``harvesters`` on PyPI) — the de-facto standard, vendor-
-  neutral Python backend for GigE Vision. If your line already standardised on
-  Aravis or a vendor SDK, swap the body of ``_HarvesterSource`` only; the public
-  interface below is what the rest of the system depends on.
-  / Камера GigE Vision через GenICam/Harvester. Для Aravis/SDK замените только
-    _HarvesterSource — публичный интерфейс остаётся прежним.
+Primary backend / Основной бэкенд:
+  The plant camera is driven through the **Huaray MV Viewer SDK** (the vendor
+  ``MvCamera`` / ``IMVApi`` Python binding shipped with the camera). This is the
+  ``IMV_*`` GenICam API: enumerate -> create handle -> open -> set features
+  (ExposureTime / Gain / PixelFormat) -> start grabbing -> IMV_GetFrame. The SDK
+  works for the vendor's GigE, USB3, CameraLink and CoaXPress cameras.
+  / Основной бэкенд — SDK Huaray MV Viewer (IMVApi / MvCamera).
 
-When no camera or Harvester install is present (e.g. an engineering laptop or
+An optional ``harvester`` backend (vendor-neutral GenICam) is kept for sites
+that standardised on it. When no camera or SDK is present (engineering laptop or
 CI), the wrapper transparently falls back to a directory of images or a
 synthetic part renderer so the full pipeline stays runnable and demonstrable.
-/ Без камеры/Harvester — прозрачный переход на источник из файлов или синтетику.
+/ Дополнительно — Harvester; без камеры/SDK — переход на файлы/синтетику.
 """
 
 from __future__ import annotations
 
 import glob
 import os
+import sys
 from typing import Any, Dict, List, Optional
 
 import cv2
@@ -115,6 +116,149 @@ class _AcquisitionSource:
     def apply_settings(self, exposure_us: float, gain_db: float) -> None:
         """Best-effort exposure/gain application; fallbacks ignore it."""
         return None
+
+
+# --------------------------------------------------------------------------- #
+# Huaray MV Viewer SDK helpers / Помощники SDK Huaray MV Viewer
+# --------------------------------------------------------------------------- #
+def _imv_frame_to_ndarray(frame: Any, defs: Any) -> np.ndarray:
+    """Copy an IMV_Frame into an owned NumPy array (mono or BGR).
+
+    The SDK buffer is only valid until IMV_ReleaseFrame, so we always copy. We
+    handle Mono8, RGB8/BGR8 and 8-bit Bayer directly; higher bit depths raise a
+    clear error (set PixelFormat=Mono8, or extend via IMV_PixelConvert).
+    / Копирует кадр IMV_Frame в собственный массив NumPy; буфер SDK живёт только
+      до IMV_ReleaseFrame. Mono8/RGB8/BGR8/Bayer8 — напрямую; иначе явная ошибка.
+    """
+    info = frame.frameInfo
+    w, h, pf = int(info.width), int(info.height), int(info.pixelFormat)
+    raw = np.ctypeslib.as_array(frame.pData, shape=(int(info.size),)).copy()
+
+    if pf == defs.IMV_EPixelType.gvspPixelMono8:
+        return raw[: w * h].reshape(h, w)
+    if pf == defs.IMV_EPixelType.gvspPixelBGR8:
+        return raw[: w * h * 3].reshape(h, w, 3)
+    if pf == defs.IMV_EPixelType.gvspPixelRGB8:
+        return cv2.cvtColor(raw[: w * h * 3].reshape(h, w, 3), cv2.COLOR_RGB2BGR)
+
+    # 8-bit Bayer -> demosaic to BGR (best effort; station runs Mono8).
+    # / 8-битный Bayer -> демозаик в BGR (по возможности).
+    bayer_codes = {
+        defs.IMV_EPixelType.gvspPixelBayGR8: cv2.COLOR_BayerGR2BGR,
+        defs.IMV_EPixelType.gvspPixelBayRG8: cv2.COLOR_BayerRG2BGR,
+        defs.IMV_EPixelType.gvspPixelBayGB8: cv2.COLOR_BayerGB2BGR,
+        defs.IMV_EPixelType.gvspPixelBayBG8: cv2.COLOR_BayerBG2BGR,
+    }
+    if pf in bayer_codes:
+        return cv2.cvtColor(raw[: w * h].reshape(h, w), bayer_codes[pf])
+
+    raise RuntimeError(
+        f"Unsupported IMV pixelFormat 0x{pf:08X}. Set camera PixelFormat to "
+        "'Mono8' (recommended for metrology) or extend _imv_frame_to_ndarray."
+    )
+
+
+class _HuaraySource(_AcquisitionSource):
+    """Acquisition through the Huaray MV Viewer SDK (``IMVApi.MvCamera``).
+
+    / Захват через SDK Huaray MV Viewer (IMVApi.MvCamera).
+    """
+
+    def __init__(self, cfg: Dict[str, Any]) -> None:
+        self._cfg = cfg
+        self._cam = None       # IMVApi.MvCamera
+        self._defs = None      # IMVDefines module
+        self._api = None       # IMVApi module
+
+    def _check(self, code: int, what: str) -> None:
+        """Raise with the IMV return code on failure. / Ошибка по коду возврата."""
+        if code != self._defs.IMV_OK:
+            raise RuntimeError(f"{what} failed (IMV code {code}).")
+
+    def open(self) -> None:
+        # The vendor binding lives beside the SDK; add it to the path and import
+        # lazily so this module loads without the SDK present.
+        # / Ленивый импорт биндинга вендора из sdk_path.
+        sdk_path = self._cfg.get("sdk_path", "CameraSDK")
+        if sdk_path and sdk_path not in sys.path:
+            sys.path.insert(0, sdk_path)
+        import IMVApi  # type: ignore
+        import IMVDefines  # type: ignore
+        self._api, self._defs = IMVApi, IMVDefines
+
+        # 1) Enumerate devices across all interfaces. / Перечисление устройств.
+        dev_list = IMVDefines.IMV_DeviceList()
+        iface_all = IMVDefines.IMV_EInterfaceType.interfaceTypeAll
+        self._check(IMVApi.MvCamera.IMV_EnumDevices(dev_list, iface_all),
+                    "IMV_EnumDevices")
+        if dev_list.nDevNum == 0:
+            raise RuntimeError("No Huaray cameras discovered by IMV_EnumDevices.")
+
+        # 2) Create a handle by device index and open the device.
+        # / Создание хендла по индексу и открытие устройства.
+        from ctypes import c_int, byref  # local; ctypes always available
+        index = int(self._cfg.get("device_index", 0))
+        self._cam = IMVApi.MvCamera()
+        self._check(
+            self._cam.IMV_CreateHandle(
+                IMVDefines.IMV_ECreateHandleMode.modeByIndex, byref(c_int(index))),
+            "IMV_CreateHandle")
+        self._check(self._cam.IMV_Open(), "IMV_Open")
+
+        # 3) Pixel format + exposure/gain. / Формат пикселей + экспозиция/усиление.
+        pixel_format = self._cfg.get("pixel_format", "Mono8")
+        try:
+            self._cam.IMV_SetEnumFeatureSymbol("PixelFormat", pixel_format)
+        except Exception:  # noqa: BLE001 - some models fix the format
+            pass
+        self.apply_settings(
+            float(self._cfg.get("exposure_us", 8000.0)),
+            float(self._cfg.get("gain", 1.0)),
+        )
+
+        # 4) Start the stream. / Запуск потока.
+        self._check(self._cam.IMV_StartGrabbing(), "IMV_StartGrabbing")
+
+    def apply_settings(self, exposure_us: float, gain: float) -> None:
+        if self._cam is None:
+            return
+        exp_feat = self._cfg.get("exposure_feature", "ExposureTime")
+        gain_feat = self._cfg.get("gain_feature", "GainRaw")
+        # Set only what the device exposes; ignore unsupported nodes.
+        # / Пишем только доступные узлы, недоступные пропускаем.
+        for feat, value in ((exp_feat, exposure_us), (gain_feat, gain)):
+            try:
+                if self._cam.IMV_FeatureIsWriteable(feat):
+                    self._cam.IMV_SetDoubleFeatureValue(feat, float(value))
+            except Exception:  # noqa: BLE001
+                pass
+
+    def read(self) -> np.ndarray:
+        from ctypes import byref
+        frame = self._defs.IMV_Frame()
+        timeout = int(self._cfg.get("grab_timeout_ms", 2000))
+        self._check(self._cam.IMV_GetFrame(frame, timeout), "IMV_GetFrame")
+        try:
+            return _imv_frame_to_ndarray(frame, self._defs)
+        finally:
+            # Always return the buffer to the SDK pool. / Всегда возвращаем буфер.
+            self._cam.IMV_ReleaseFrame(frame)
+
+    def close(self) -> None:
+        if self._cam is None:
+            return
+        try:
+            if self._cam.IMV_IsGrabbing():
+                self._cam.IMV_StopGrabbing()
+            if self._cam.IMV_IsOpen():
+                self._cam.IMV_Close()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self._cam.IMV_DestroyHandle()
+        except Exception:  # noqa: BLE001
+            pass
+        self._cam = None
 
 
 class _HarvesterSource(_AcquisitionSource):
@@ -266,25 +410,31 @@ class Camera:
         self.active_backend: str = "unopened"
 
     # -- lifecycle / жизненный цикл -- #
+    _HARDWARE_BACKENDS = {
+        "huaray": _HuaraySource,
+        "harvester": _HarvesterSource,
+    }
+
     def connect(self) -> "Camera":
         """Open the configured backend, falling back on failure.
 
-        Tries the hardware backend first; if it raises (no camera, no
-        harvesters, missing .cti), it falls back to the configured offline
-        source and records which backend is actually in use.
+        Tries the configured hardware backend first; if it raises (no camera, no
+        SDK, missing library), it falls back to the configured offline source
+        and records which backend is actually in use.
         / Открывает бэкенд; при сбое — переход на офлайн-источник.
         """
-        backend = self._cfg.get("backend", "harvester")
-        if backend == "harvester":
+        backend = self._cfg.get("backend", "huaray")
+        source_cls = self._HARDWARE_BACKENDS.get(backend)
+        if source_cls is not None:
             try:
-                self._source = _HarvesterSource(self._cfg)
+                self._source = source_cls(self._cfg)
                 self._source.open()
-                self.active_backend = "harvester"
+                self.active_backend = backend
                 self._connected = True
                 return self
             except Exception as exc:  # noqa: BLE001 - fall back deliberately
                 print(
-                    f"[camera] Hardware backend unavailable ({exc}); "
+                    f"[camera] Hardware backend '{backend}' unavailable ({exc}); "
                     f"falling back to '{self._cfg.get('fallback_source')}'."
                 )
         self._connect_fallback()
@@ -321,9 +471,12 @@ class Camera:
             raise RuntimeError("Camera is not connected; call connect() first.")
         return self._source
 
-    def set_exposure_gain(self, exposure_us: float, gain_db: float) -> None:
-        """Update exposure (us) and gain (dB) at runtime. / Меняет экспозицию/усиление."""
-        self._require().apply_settings(exposure_us, gain_db)
+    def set_exposure_gain(self, exposure_us: float, gain: float) -> None:
+        """Update exposure (us) and gain (camera units) at runtime.
+
+        / Меняет экспозицию (мкс) и усиление (в единицах камеры) на лету.
+        """
+        self._require().apply_settings(exposure_us, gain)
 
     def grab_frame(self) -> np.ndarray:
         """Grab a single frame as an ndarray (mono or BGR). / Один кадр."""

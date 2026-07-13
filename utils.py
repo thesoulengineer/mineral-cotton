@@ -80,22 +80,32 @@ def default_config() -> Dict[str, Any]:
     """
     return {
         "camera": {
-            # Acquisition backend. We assume GenICam via the Harvester library
-            # (the de-facto standard for GigE Vision in Python). camera.py falls
-            # back to a file/synthetic source when no hardware is present.
-            # / Бэкенд захвата: GenICam через Harvester; при отсутствии
-            #   оборудования — источник из файлов/синтетики.
-            "backend": "harvester",
-            "cti_file": os.environ.get(
-                "GENICAM_GENTL64_PATH", "/opt/genicam/producer.cti"
-            ),
+            # Acquisition backend: "huaray" drives the camera through the Huaray
+            # MV Viewer SDK (IMVApi.MvCamera); "harvester" uses vendor-neutral
+            # GenICam. camera.py falls back to a file/synthetic source when no
+            # hardware/SDK is present.
+            # / Бэкенд захвата: "huaray" — SDK Huaray MV Viewer; "harvester" —
+            #   нейтральный GenICam; иначе — файлы/синтетика.
+            "backend": "huaray",
+            # Directory containing the vendor IMVApi.py / IMVDefines.py binding.
+            # / Каталог с биндингом вендора IMVApi.py / IMVDefines.py.
+            "sdk_path": "CameraSDK",
             "device_index": 0,
             "pixel_format": "Mono8",
             "exposure_us": 8000.0,
-            "gain_db": 0.0,
+            "gain": 1.0,
+            # GenICam node names for exposure/gain (vendor-specific for gain).
+            # / Имена узлов GenICam для экспозиции/усиления.
+            "exposure_feature": "ExposureTime",
+            "gain_feature": "GainRaw",
+            "grab_timeout_ms": 2000,
             "average_frames": 8,
-            # Fallback source used when hardware/Harvester is unavailable.
-            # / Резервный источник, когда оборудование недоступно.
+            # Harvester-only: GenTL producer .cti path. / Только для Harvester.
+            "cti_file": os.environ.get(
+                "GENICAM_GENTL64_PATH", "/opt/genicam/producer.cti"
+            ),
+            # Fallback source used when hardware/SDK is unavailable.
+            # / Резервный источник, когда оборудование/SDK недоступны.
             "fallback_source": "synthetic",  # "synthetic" | "directory"
             "fallback_directory": "samples",
         },

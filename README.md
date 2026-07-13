@@ -24,7 +24,7 @@ GigE Vision (вид сверху) измеряет планарную геоме
 
 | File | Role / Роль |
 |------|-------------|
-| `camera.py` | GigE Vision acquisition (GenICam/Harvester) + hardware-free fallback. / Захват GigE Vision + резервный источник. |
+| `camera.py` | Acquisition via the Huaray MV Viewer SDK (IMVApi) + hardware-free fallback. / Захват через SDK Huaray MV Viewer + резервный источник. |
 | `utils.py` | Calibration, preprocessing, config I/O, geometry helpers. / Калибровка, предобработка, конфиг, геометрия. |
 | `inference.py` | Feature extraction + envelope classification. / Извлечение признаков + классификация. |
 | `calibrate.py` | One-time calibration + envelope + gauge-R&R CLI. / Калибровка + допуск + повторяемость (CLI). |
@@ -38,12 +38,37 @@ GigE Vision (вид сверху) измеряет планарную геоме
 
 ```bash
 pip install -r requirements.txt
-# On the production station, also: pip install harvesters
-# and set the GenTL producer path (camera.cti_file or $GENICAM_GENTL64_PATH).
 ```
 
 `opencv-python-headless` is fine on servers without a display.
 На серверах без дисплея подойдёт `opencv-python-headless`.
+
+### Camera SDK setup / Настройка SDK камеры
+
+The camera is driven by the **Huaray MV Viewer SDK** (the vendor `IMVApi.py` /
+`IMVDefines.py` Python binding + runtime DLLs). It is **not** on PyPI and is not
+committed here (large, platform-specific, licensed). On the production station:
+
+Камера управляется **SDK Huaray MV Viewer** (биндинг `IMVApi.py`/`IMVDefines.py`
++ DLL). Он не в PyPI и не в репозитории. На рабочей станции:
+
+1. Install the Huaray MV Viewer SDK (ships with the camera). / Установите SDK.
+2. Make the vendor binding importable — place the `CameraSDK` folder next to
+   this project (default) **or** set `camera.sdk_path` in `config.json` to its
+   location. `camera.py` adds that path to `sys.path` and imports `IMVApi`.
+   / Положите папку `CameraSDK` рядом с проектом или задайте `camera.sdk_path`.
+3. `IMVApi.py` loads the SDK DLL by an absolute path near its top
+   (`MVSDKmd.dll` / `libMVSDK.so`). If your install location differs, adjust
+   that one line or install the SDK where it expects.
+   / `IMVApi.py` грузит DLL по абсолютному пути — при необходимости поправьте.
+
+Without the SDK (engineering laptop / CI), `camera.py` prints a notice and
+falls back to a synthetic or directory source, so everything below still runs.
+/ Без SDK — переход на синтетику/файлы; всё нижеописанное работает.
+
+To use vendor-neutral **Harvester** instead, set `camera.backend` to
+`"harvester"`, `pip install harvesters`, and point `camera.cti_file` at the
+GenTL producer `.cti`. / Для Harvester: `backend="harvester"`, `cti_file`.
 
 ---
 
@@ -76,11 +101,15 @@ defective parts. It is also the project smoke test.
    Install the GenTL producer and point `camera.cti_file` at its `.cti`.
    / Подключите камеру к выделенной сетевой карте; укажите `.cti` в конфиге.
 
-**Backend assumption / Допущение о бэкенде.** `camera.py` drives the camera via
-**GenICam / Harvester** (vendor-neutral). For Aravis or a vendor SDK, replace
-the body of `_HarvesterSource` only — the public `Camera` interface is stable.
-Without hardware/Harvester, `Camera` falls back to a directory of images or a
-synthetic renderer (see `camera.fallback_source`).
+**Backend / Бэкенд.** `camera.py` drives the camera via the **Huaray MV Viewer
+SDK** (`IMVApi.MvCamera`): enumerate → create handle → open → set
+`ExposureTime` / `GainRaw` / `PixelFormat` → start grabbing → `IMV_GetFrame`.
+Exposure/gain node names are configurable (`camera.exposure_feature`,
+`camera.gain_feature`) since gain naming is vendor-specific. A `"harvester"`
+backend is available as an alternative, and without hardware/SDK `Camera` falls
+back to a directory of images or a synthetic renderer
+(`camera.fallback_source`). / Основной бэкенд — SDK Huaray MV Viewer; есть
+Harvester и резервные источники.
 
 ---
 
@@ -234,7 +263,9 @@ Both are append-only for traceability. / Дозапись — для просл�
 
 All tunables live in `config.json` — nothing is hard-coded. Key groups:
 
-- `camera` — backend, `cti_file`, `exposure_us`, `gain_db`, `average_frames`,
+- `camera` — `backend` (`huaray`|`harvester`), `sdk_path`, `device_index`,
+  `pixel_format`, `exposure_us`, `gain`, `exposure_feature`, `gain_feature`,
+  `grab_timeout_ms`, `average_frames`, `cti_file` (Harvester),
   `fallback_source` (`synthetic`|`directory`).
 - `calibration` — `mm_per_pixel`, `camera_matrix`, `dist_coeffs`, `image_size`,
   `checkerboard {cols, rows, square_size_mm}`.
