@@ -62,22 +62,29 @@ pip install -r requirements.txt
 
 ### Camera SDK setup / Настройка SDK камеры
 
-The camera is driven by the **Huaray MV Viewer SDK** (the vendor `IMVApi.py` /
-`IMVDefines.py` Python binding + runtime DLLs). It is **not** on PyPI and is not
-committed here (large, platform-specific, licensed). On the production station:
+The camera is the **ContrasTech Mars2300S-40gc** (GigE, color), driven by the
+**Huaray/ContrasTech MV Viewer SDK** (the vendor `IMVApi.py` / `IMVDefines.py`
+Python binding + runtime DLLs). It is **not** on PyPI and is not committed here
+(large, platform-specific, licensed). On the production station:
 
-Камера управляется **SDK Huaray MV Viewer** (биндинг `IMVApi.py`/`IMVDefines.py`
-+ DLL). Он не в PyPI и не в репозитории. На рабочей станции:
+Камера **ContrasTech Mars2300S-40gc** (GigE, цветная) управляется **SDK Huaray/
+ContrasTech MV Viewer** (`IMVApi.py`/`IMVDefines.py` + DLL). Не в PyPI и не в
+репозитории. На рабочей станции:
 
-1. Install the Huaray MV Viewer SDK (ships with the camera). / Установите SDK.
-2. Make the vendor binding importable — place the `CameraSDK` folder next to
-   this project (default) **or** set `camera.sdk_path` in `config.json` to its
-   location. `camera.py` adds that path to `sys.path` and imports `IMVApi`.
-   / Положите папку `CameraSDK` рядом с проектом или задайте `camera.sdk_path`.
-3. `IMVApi.py` loads the SDK DLL by an absolute path near its top
-   (`MVSDKmd.dll` / `libMVSDK.so`). If your install location differs, adjust
-   that one line or install the SDK where it expects.
+1. Install the MV Viewer SDK (ships with the camera). / Установите SDK.
+2. Point `camera.sdk_path` in `config.json` at the vendor binding folder. The
+   default is the station install path `C:/API.RP.1.3.8/APIContrastech`;
+   `camera.py` adds it to `sys.path` and imports `IMVApi`.
+   / Задайте `camera.sdk_path` (по умолчанию `C:/API.RP.1.3.8/APIContrastech`).
+3. `IMVApi.py` loads the SDK DLL by an absolute path near its top. If your
+   install location differs, adjust that one line or install where it expects.
    / `IMVApi.py` грузит DLL по абсолютному пути — при необходимости поправьте.
+
+**Pixel format.** For metrology set `camera.pixel_format = "Mono8"` (kept
+single-channel). If the color sensor streams Bayer/YUV/packed instead, the
+acquisition path converts it to BGR8 via the SDK's `IMV_PixelConvert`
+automatically, so any format works. / Для метрологии — `Mono8`; иначе кадр
+конвертируется в BGR8 через `IMV_PixelConvert`.
 
 Without the SDK (engineering laptop / CI), `camera.py` prints a notice and
 falls back to a synthetic or directory source, so everything below still runs.

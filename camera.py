@@ -131,14 +131,24 @@ class _AcquisitionSource:
 # --------------------------------------------------------------------------- #
 # Huaray MV Viewer SDK helpers / Помощники SDK Huaray MV Viewer
 # --------------------------------------------------------------------------- #
-def _imv_frame_to_ndarray(frame: Any, defs: Any) -> np.ndarray:
-    """Copy an IMV_Frame into an owned NumPy array (mono or BGR).
+class _UnsupportedPixelFormat(RuntimeError):
+    """Raised when the fast direct converter cannot handle a pixel format.
 
-    The SDK buffer is only valid until IMV_ReleaseFrame, so we always copy. We
-    handle Mono8, RGB8/BGR8 and 8-bit Bayer directly; higher bit depths raise a
-    clear error (set PixelFormat=Mono8, or extend via IMV_PixelConvert).
-    / Копирует кадр IMV_Frame в собственный массив NumPy; буфер SDK живёт только
-      до IMV_ReleaseFrame. Mono8/RGB8/BGR8/Bayer8 — напрямую; иначе явная ошибка.
+    Signals ``read()`` to fall back to the SDK's IMV_PixelConvert.
+    / Сигнал перейти на IMV_PixelConvert для неизвестного формата.
+    """
+
+
+def _imv_frame_to_ndarray(frame: Any, defs: Any) -> np.ndarray:
+    """Fast path: copy an IMV_Frame into an owned NumPy array (mono or BGR).
+
+    The SDK buffer is only valid until IMV_ReleaseFrame, so we always copy.
+    Handles the common metrology formats directly (Mono8 stays single-channel,
+    which is what we want); anything else raises ``_UnsupportedPixelFormat`` so
+    the caller converts via the SDK (IMV_PixelConvert), which covers every
+    format the ContrasTech Mars2300S-40gc color sensor can stream.
+    / Быстрый путь: Mono8/RGB8/BGR8/Bayer8 напрямую; иначе исключение, и вызов
+      уходит на IMV_PixelConvert (покрывает любой формат цветного сенсора).
     """
     info = frame.frameInfo
     w, h, pf = int(info.width), int(info.height), int(info.pixelFormat)
@@ -151,8 +161,7 @@ def _imv_frame_to_ndarray(frame: Any, defs: Any) -> np.ndarray:
     if pf == defs.IMV_EPixelType.gvspPixelRGB8:
         return cv2.cvtColor(raw[: w * h * 3].reshape(h, w, 3), cv2.COLOR_RGB2BGR)
 
-    # 8-bit Bayer -> demosaic to BGR (best effort; station runs Mono8).
-    # / 8-битный Bayer -> демозаик в BGR (по возможности).
+    # 8-bit Bayer -> demosaic to BGR (best effort). / 8-битный Bayer -> BGR.
     bayer_codes = {
         defs.IMV_EPixelType.gvspPixelBayGR8: cv2.COLOR_BayerGR2BGR,
         defs.IMV_EPixelType.gvspPixelBayRG8: cv2.COLOR_BayerRG2BGR,
@@ -162,10 +171,7 @@ def _imv_frame_to_ndarray(frame: Any, defs: Any) -> np.ndarray:
     if pf in bayer_codes:
         return cv2.cvtColor(raw[: w * h].reshape(h, w), bayer_codes[pf])
 
-    raise RuntimeError(
-        f"Unsupported IMV pixelFormat 0x{pf:08X}. Set camera PixelFormat to "
-        "'Mono8' (recommended for metrology) or extend _imv_frame_to_ndarray."
-    )
+    raise _UnsupportedPixelFormat(f"pixelFormat 0x{pf:08X}")
 
 
 class _HuaraySource(_AcquisitionSource):
@@ -204,14 +210,15 @@ class _HuaraySource(_AcquisitionSource):
         if dev_list.nDevNum == 0:
             raise RuntimeError("No Huaray cameras discovered by IMV_EnumDevices.")
 
-        # 2) Create a handle by device index and open the device.
-        # / Создание хендла по индексу и открытие устройства.
-        from ctypes import c_int, byref  # local; ctypes always available
+        # 2) Create a handle by device index and open the device. The identifier
+        #    is passed as c_void_p to match the vendor's own samples exactly.
+        # / Создание хендла по индексу; идентификатор — c_void_p, как в примерах.
+        from ctypes import c_void_p, byref  # local; ctypes always available
         index = int(self._cfg.get("device_index", 0))
         self._cam = IMVApi.MvCamera()
         self._check(
             self._cam.IMV_CreateHandle(
-                IMVDefines.IMV_ECreateHandleMode.modeByIndex, byref(c_int(index))),
+                IMVDefines.IMV_ECreateHandleMode.modeByIndex, byref(c_void_p(index))),
             "IMV_CreateHandle")
         self._check(self._cam.IMV_Open(), "IMV_Open")
 
@@ -244,15 +251,51 @@ class _HuaraySource(_AcquisitionSource):
                 pass
 
     def read(self) -> np.ndarray:
-        from ctypes import byref
         frame = self._defs.IMV_Frame()
         timeout = int(self._cfg.get("grab_timeout_ms", 2000))
         self._check(self._cam.IMV_GetFrame(frame, timeout), "IMV_GetFrame")
         try:
-            return _imv_frame_to_ndarray(frame, self._defs)
+            try:
+                # Fast direct path (keeps Mono8 single-channel for metrology).
+                # / Быстрый прямой путь (Mono8 остаётся одноканальным).
+                return _imv_frame_to_ndarray(frame, self._defs)
+            except _UnsupportedPixelFormat:
+                # Robust path for any color/Bayer/packed format the sensor emits.
+                # / Надёжный путь для любых цветных/Bayer/упакованных форматов.
+                return self._convert_via_sdk(frame)
         finally:
             # Always return the buffer to the SDK pool. / Всегда возвращаем буфер.
             self._cam.IMV_ReleaseFrame(frame)
+
+    def _convert_via_sdk(self, frame: Any) -> np.ndarray:
+        """Convert any pixel format to BGR8 via the SDK's IMV_PixelConvert.
+
+        Mirrors the vendor sample: fill an IMV_PixelConvertParam pointing at the
+        source frame and a destination BGR8 buffer, then copy the result into an
+        owned NumPy array (the dst buffer is reused per call).
+        / Конвертация в BGR8 через IMV_PixelConvert (как в примере вендора).
+        """
+        from ctypes import c_ubyte, byref, memset, sizeof
+        defs = self._defs
+        info = frame.frameInfo
+        w, h = int(info.width), int(info.height)
+
+        param = defs.IMV_PixelConvertParam()
+        memset(byref(param), 0, sizeof(param))
+        param.nWidth = w
+        param.nHeight = h
+        param.ePixelFormat = info.pixelFormat
+        param.pSrcData = frame.pData
+        param.nSrcDataLen = info.size
+        param.nPaddingX = info.paddingX
+        param.nPaddingY = info.paddingY
+        param.eDstPixelFormat = defs.IMV_EPixelType.gvspPixelBGR8
+        dst = (c_ubyte * (w * h * 3))()
+        param.pDstBuf = dst
+        param.nDstBufSize = w * h * 3
+
+        self._check(self._cam.IMV_PixelConvert(param), "IMV_PixelConvert")
+        return np.frombuffer(dst, dtype=np.uint8).reshape(h, w, 3).copy()
 
     def close(self) -> None:
         if self._cam is None:

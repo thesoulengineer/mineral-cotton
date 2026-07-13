@@ -91,8 +91,9 @@ def default_config() -> Dict[str, Any]:
             #   нейтральный GenICam; иначе — файлы/синтетика.
             "backend": "huaray",
             # Directory containing the vendor IMVApi.py / IMVDefines.py binding.
-            # / Каталог с биндингом вендора IMVApi.py / IMVDefines.py.
-            "sdk_path": "CameraSDK",
+            # Default is the ContrasTech install path on the station; override
+            # per machine. / Каталог с биндингом вендора (путь установки на станции).
+            "sdk_path": "C:/API.RP.1.3.8/APIContrastech",
             "device_index": 0,
             "pixel_format": "Mono8",
             "exposure_us": 8000.0,
