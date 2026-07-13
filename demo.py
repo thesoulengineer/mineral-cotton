@@ -119,6 +119,11 @@ def generate_samples() -> None:
                 render_synthetic_part(hole_offset_px=(45.0, 32.0), seed=8))  # ~5.5 mm
     cv2.imwrite(os.path.join(SAMPLES_DIR, "defects", "out_of_round.png"),
                 render_synthetic_part(ellipticity=0.86, seed=9))
+    # Circle pattern shifted off the block: still concentric to each other
+    # (concentricity OK) but not centered to the block -> base_center_offset.
+    # / Рисунок кругов смещён относительно блока: соосность OK, центровка нет.
+    cv2.imwrite(os.path.join(SAMPLES_DIR, "defects", "off_center_pattern.png"),
+                render_synthetic_part(center_jitter_px=(14.0, 10.0), seed=10))  # ~2.2 mm
     print(f"[demo] samples written under '{SAMPLES_DIR}/'")
 
 
@@ -154,7 +159,7 @@ def main() -> int:
     print(f"  good part      -> status={res['status']} verdict={res['verdict']} "
           f"features={res.get('features')}")
 
-    for name in ("hole_oversize", "eccentric_hole", "out_of_round"):
+    for name in ("hole_oversize", "eccentric_hole", "out_of_round", "off_center_pattern"):
         img = cv2.imread(os.path.join(SAMPLES_DIR, "defects", f"{name}.png"), cv2.IMREAD_UNCHANGED)
         res = inspect(img, cfg)
         viol = [v.get("feature") for v in res.get("violations", [])]

@@ -18,14 +18,14 @@
     "mm_per_pixel": 0.09975684117746134,
     "camera_matrix": [
       [
-        10696.98112275625,
+        10696.981144252415,
         0.0,
-        607.4667043951737
+        607.4667026517752
       ],
       [
         0.0,
-        10822.691147710893,
-        604.6586637155177
+        10822.69117071602,
+        604.6586605154502
       ],
       [
         0.0,
@@ -35,11 +35,11 @@
     ],
     "dist_coeffs": [
       [
-        8.565553085066002,
-        -18379.432816662367,
-        -0.027652191253666133,
-        0.04589873154360494,
-        -19.95240332968838
+        8.565553307186274,
+        -18379.433388792964,
+        -0.02765219014502745,
+        0.045898732360093175,
+        -19.9524039164908
       ]
     ],
     "image_size": [
@@ -51,7 +51,7 @@
       "rows": 6,
       "square_size_mm": 5.0
     },
-    "rms_reproj_error_px": 0.45335237799807426
+    "rms_reproj_error_px": 0.45335237799807604
   },
   "preprocessing": {
     "median_blur_ksize": 5,
@@ -128,6 +128,14 @@
         "upper": 0.35129,
         "n": 40
       },
+      "base_center_offset_mm": {
+        "mean": 0.23891,
+        "sigma": 0.1415,
+        "side": "upper",
+        "lower": null,
+        "upper": 0.66343,
+        "n": 40
+      },
       "center_hole_roundness": {
         "mean": 0.99713,
         "sigma": 0.00997,
@@ -155,14 +163,15 @@
     },
     "held_out_false_reject_rate": 0.0,
     "measurement_repeatability": {
-      "center_hole_diameter_mm": 0.001496,
-      "ring_inner_diameter_mm": 0.002589,
-      "ring_outer_diameter_mm": 0.001755,
-      "concentricity_mm": 0.001003,
-      "base_squareness_deg": 0.001313,
-      "center_hole_roundness": 0.000305,
-      "ring_inner_roundness": 0.000112,
-      "ring_outer_roundness": 6.7e-05
+      "center_hole_diameter_mm": 0.00193,
+      "ring_inner_diameter_mm": 0.002172,
+      "ring_outer_diameter_mm": 0.001323,
+      "concentricity_mm": 0.001071,
+      "base_squareness_deg": 0.000909,
+      "base_center_offset_mm": 0.001091,
+      "center_hole_roundness": 0.000317,
+      "ring_inner_roundness": 9.5e-05,
+      "ring_outer_roundness": 5.5e-05
     }
   },
   "logging": {

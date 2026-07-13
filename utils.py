@@ -64,7 +64,9 @@ def feature_sidedness(name: str) -> str:
     """
     if name.endswith("_roundness"):
         return SIDE_LOWER
-    if name == "concentricity_mm" or name.endswith("_squareness_deg"):
+    if (name == "concentricity_mm"
+            or name.endswith("_squareness_deg")
+            or name.endswith("_offset_mm")):
         return SIDE_UPPER
     return SIDE_TWO
 
@@ -527,19 +529,19 @@ def concentricity_mm(
     return float(np.max(dists)) * float(mm_per_pixel)
 
 
-def base_squareness(
-    gray: np.ndarray, mm_per_pixel: float
-) -> Optional[float]:
-    """Max corner-angle deviation (degrees) of the square base from 90 deg.
+def analyze_base(gray: np.ndarray) -> Optional[Dict[str, Any]]:
+    """Locate the square base and return its center and squareness.
 
-    Robust measurement: locate the base outline, split it into four sides at the
-    quadrilateral corners, and fit each side as a line over all its contour
-    points (cv2.fitLine). The angle between adjacent fitted sides is compared to
-    90 deg. Fitting whole edges — instead of trusting four approxPolyDP vertices
-    — averages out corner-pixel noise, so the metric is stable on soft edges.
-    Returns None if a convincing quadrilateral is not found.
-    / Робастно: стороны основания подгоняются прямыми (fitLine) по всем точкам;
-      угол между соседними сторонами сравнивается с 90°. Устойчиво к шуму краёв.
+    Returns ``{"center_px": (cx, cy), "squareness_deg": float | None}`` or None
+    if no base blob is found. The center is the contour-moment centroid of the
+    base outline (robust to internal features and corner rounding); it anchors
+    the "circles centered to the block" check. ``squareness_deg`` is the max
+    corner-angle deviation from 90 deg, measured by fitting each of the four
+    sides as a line over all its contour points (cv2.fitLine) — far more stable
+    than trusting four approxPolyDP vertices — or None if the outline is not a
+    clean quadrilateral.
+    / Находит квадратное основание: центр (центроид контура) для проверки
+      центровки кругов к блоку и квадратность (по подгонке сторон прямыми).
     """
     # Binarize and take the largest external contour as the base outline.
     # / Бинаризация; крупнейший внешний контур — основание.
@@ -548,10 +550,17 @@ def base_squareness(
     if not contours:
         return None
     base = max(contours, key=cv2.contourArea)
+    moments = cv2.moments(base)
+    if moments["m00"] == 0:
+        return None
+    center_px = (moments["m10"] / moments["m00"], moments["m01"] / moments["m00"])
+
+    result: Dict[str, Any] = {"center_px": center_px, "squareness_deg": None}
+
     peri = cv2.arcLength(base, True)
     approx = cv2.approxPolyDP(base, 0.02 * peri, True)
     if len(approx) != 4:
-        return None
+        return result  # center still valid / центр всё равно валиден
 
     pts = base.reshape(-1, 2).astype(np.float64)
     corners = approx.reshape(-1, 2).astype(np.float64)
@@ -576,7 +585,7 @@ def base_squareness(
     for i in range(4):
         d = _side_direction(corner_idx[i], corner_idx[(i + 1) % 4])
         if d is None:
-            return None
+            return result
         dirs.append(d)
 
     max_dev = 0.0
@@ -586,4 +595,5 @@ def base_squareness(
         cos_a = min(1.0, max(0.0, cos_a))
         angle_between = np.degrees(np.arccos(cos_a))  # 90 deg for a true square
         max_dev = max(max_dev, abs(90.0 - angle_between))
-    return float(max_dev)
+    result["squareness_deg"] = float(max_dev)
+    return result

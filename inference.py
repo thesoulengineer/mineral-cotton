@@ -23,8 +23,8 @@ from utils import (
     STATUS_WRONG_COUNT,
     VERDICT_FAIL,
     VERDICT_PASS,
+    analyze_base,
     assess_contrast,
-    base_squareness,
     concentricity_mm,
     list_to_matrix,
     preprocess,
@@ -169,7 +169,7 @@ def extract_geometry(
     frame: np.ndarray,
     cfg: Dict[str, Any],
     undistort_maps: Optional[Tuple[np.ndarray, np.ndarray]] = None,
-    measure_squareness: bool = True,
+    measure_base: bool = True,
 ) -> Dict[str, Any]:
     """Extract planar geometry from a single frame, in millimeters.
 
@@ -264,11 +264,24 @@ def extract_geometry(
         "contrast": contrast_metrics,
     }
 
-    # 7) Optional base squareness.
-    if measure_squareness:
-        sq = base_squareness(gray, float(mm_per_pixel))
-        if sq is not None:
-            features["base_squareness_deg"] = round(sq, 4)
+    # 7) Base-relative metrics: squareness AND whether the circle pattern is
+    #    centered on the block (distinct from circle-to-circle concentricity).
+    # / Метрики относительно основания: квадратность И центровка кругов к блоку.
+    if measure_base:
+        base = analyze_base(gray)
+        if base is not None:
+            if base["squareness_deg"] is not None:
+                features["base_squareness_deg"] = round(float(base["squareness_deg"]), 4)
+            # Offset of the circle pattern from the block center, in mm. We
+            # anchor to the RING center (mean of the two largest edges), not all
+            # three circles, so an eccentric hole stays a concentricity issue
+            # and does not masquerade as an off-center pattern.
+            # / Смещение рисунка от центра блока: опора на центр кольца (два
+            #   крупнейших края), чтобы эксцентриситет отверстия не влиял.
+            ring_center = np.mean(np.asarray(centers_px[-2:], dtype=np.float64), axis=0)
+            bx, by = base["center_px"]
+            offset_px = float(np.hypot(ring_center[0] - bx, ring_center[1] - by))
+            features["base_center_offset_mm"] = round(offset_px * float(mm_per_pixel), 4)
 
     return result
 

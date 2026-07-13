@@ -51,7 +51,7 @@ class InspectionLogger:
         self._csv_fields: List[str] = (
             ["timestamp", "status", "verdict", "num_violations"]
             + list(FEATURE_NAMES)
-            + ["concentricity_mm", "base_squareness_deg"]
+            + ["concentricity_mm", "base_center_offset_mm", "base_squareness_deg"]
             + roundness_cols
             + ["violations"]
         )

@@ -27,7 +27,7 @@ are its outer and inner edges. / **Кольцо** (НД 75 / ВД 60 мм) у к
 
 > **Single 2D view only.** Depth (the 60 mm height, pocket/hole depth) is **not**
 > measurable from this nadir view. We measure planar features only — diameters,
-> concentricity, roundness, base squareness.
+> concentricity, base centering, roundness, base squareness.
 > **Только один 2D-вид.** Глубина (высота 60 мм) **не** измеряется; только
 > планарные признаки.
 
@@ -187,6 +187,7 @@ parts, or fix illumination/repeatability.
 | diameters / диаметры | two-sided (too small **or** too large) |
 | roundness / округлость | lower only (1.0 = perfect) |
 | concentricity / соосность | upper only (0 = perfect) |
+| base centering / центровка к блоку | upper only (0 = perfect) |
 | base squareness / квадратность | upper only (0° dev = perfect) |
 
 A perfectly round or perfectly concentric part is **never** rejected for being
@@ -305,8 +306,15 @@ All tunables live in `config.json` — nothing is hard-coded. Key groups:
 - `center_hole_diameter_mm`, `ring_inner_diameter_mm`, `ring_outer_diameter_mm`
   — from the mean of the fitted ellipse axes × `mm_per_pixel`. (The ring's inner
   and outer edges are 60 mm and 75 mm; the hole is 25 mm.)
-- `concentricity_mm` — max deviation of the three fitted centers from their mean
-  center. / Макс. отклонение центров от их среднего.
+- `concentricity_mm` — max deviation of the three fitted circle centers from
+  their mean center: are the circles concentric **to each other**?
+  / Соосность кругов между собой.
+- `base_center_offset_mm` — distance from the ring center (the two largest
+  edges) to the square-block center: is the circle pattern **centered on the
+  block**? This is distinct from concentricity — the ring and hole can be
+  concentric with each other yet sit off-center on the block. Anchoring to the
+  ring center keeps an eccentric hole from masquerading as an off-center pattern.
+  / Центровка рисунка кругов относительно блока (отдельно от соосности).
 - `<feature>_roundness` — minor/major ellipse-axis ratio (1.0 = perfect;
   proxy for tilt/out-of-round). / Отношение осей эллипса.
 - `base_squareness_deg` (optional) — max corner-angle deviation of the square
