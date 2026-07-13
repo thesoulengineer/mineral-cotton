@@ -1,0 +1,168 @@
+{
+  "camera": {
+    "backend": "harvester",
+    "cti_file": "/opt/genicam/producer.cti",
+    "device_index": 0,
+    "pixel_format": "Mono8",
+    "exposure_us": 8000.0,
+    "gain_db": 0.0,
+    "average_frames": 8,
+    "fallback_source": "synthetic",
+    "fallback_directory": "samples"
+  },
+  "calibration": {
+    "mm_per_pixel": 0.09591462544585772,
+    "camera_matrix": [
+      [
+        6030.569934113467,
+        0.0,
+        376.6169092878498
+      ],
+      [
+        0.0,
+        6096.562579470425,
+        355.7375000488759
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "dist_coeffs": [
+      [
+        2.9410639889417594,
+        -1617.4930973218113,
+        -0.02452458378061683,
+        0.045413092238264674,
+        -88634.64839542564
+      ]
+    ],
+    "image_size": [
+      720,
+      720
+    ],
+    "checkerboard": {
+      "cols": 9,
+      "rows": 6,
+      "square_size_mm": 5.0
+    },
+    "rms_reproj_error_px": 0.8110657695266164
+  },
+  "preprocessing": {
+    "median_blur_ksize": 5,
+    "use_clahe": false,
+    "clahe_clip": 2.0,
+    "clahe_grid": 8
+  },
+  "detection": {
+    "hough": {
+      "dp": 1.2,
+      "min_dist_px": 15,
+      "param1": 60,
+      "param2": 30,
+      "min_radius_px": 8,
+      "max_radius_px": 250
+    },
+    "expected_circles": 3,
+    "canny_low": 40,
+    "canny_high": 120,
+    "min_contour_points": 40,
+    "min_contour_area_px": 300.0,
+    "circularity_min": 0.8,
+    "detect_roundness_min": 0.45,
+    "radius_merge_tol_px": 12.0,
+    "center_merge_tol_px": 15.0,
+    "center_tol_px": 60.0
+  },
+  "contrast": {
+    "min_mean_intensity": 25.0,
+    "max_mean_intensity": 245.0,
+    "min_std_intensity": 12.0
+  },
+  "envelope": {
+    "k_sigma": 3.0,
+    "min_sigma_frac_of_mean": 0.01,
+    "features": {
+      "center_hole_diameter_mm": {
+        "mean": 8.71716,
+        "sigma": 0.08717,
+        "side": "two",
+        "lower": 8.45565,
+        "upper": 8.97867,
+        "n": 20
+      },
+      "inner_pocket_diameter_mm": {
+        "mean": 23.05701,
+        "sigma": 0.23057,
+        "side": "two",
+        "lower": 22.3653,
+        "upper": 23.74872,
+        "n": 20
+      },
+      "outer_circle_diameter_mm": {
+        "mean": 36.49084,
+        "sigma": 0.36491,
+        "side": "two",
+        "lower": 35.39611,
+        "upper": 37.58557,
+        "n": 20
+      },
+      "concentricity_mm": {
+        "mean": 0.04242,
+        "sigma": 0.00163,
+        "side": "upper",
+        "lower": null,
+        "upper": 0.0473,
+        "n": 20
+      },
+      "base_squareness_deg": {
+        "mean": 1.54647,
+        "sigma": 0.02515,
+        "side": "upper",
+        "lower": null,
+        "upper": 1.62191,
+        "n": 20
+      },
+      "center_hole_roundness": {
+        "mean": 0.99701,
+        "sigma": 0.00997,
+        "side": "lower",
+        "lower": 0.9671,
+        "upper": null,
+        "n": 20
+      },
+      "inner_pocket_roundness": {
+        "mean": 0.99547,
+        "sigma": 0.00995,
+        "side": "lower",
+        "lower": 0.96561,
+        "upper": null,
+        "n": 20
+      },
+      "outer_circle_roundness": {
+        "mean": 0.99626,
+        "sigma": 0.00996,
+        "side": "lower",
+        "lower": 0.96638,
+        "upper": null,
+        "n": 20
+      }
+    },
+    "held_out_false_reject_rate": 0.0,
+    "measurement_repeatability": {
+      "center_hole_diameter_mm": 0.002027,
+      "inner_pocket_diameter_mm": 0.00186,
+      "outer_circle_diameter_mm": 0.001718,
+      "concentricity_mm": 0.001517,
+      "base_squareness_deg": 0.0,
+      "center_hole_roundness": 0.000744,
+      "inner_pocket_roundness": 0.000279,
+      "outer_circle_roundness": 0.000103
+    }
+  },
+  "logging": {
+    "csv_path": "inspections.csv",
+    "jsonl_path": "inspections.jsonl"
+  }
+}

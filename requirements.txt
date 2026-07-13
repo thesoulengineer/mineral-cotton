@@ -1,0 +1,9 @@
+# Core geometric path — OpenCV + NumPy only (no heavyweight ML).
+# / Основной геометрический путь — только OpenCV + NumPy.
+numpy>=1.23
+opencv-python>=4.6        # use opencv-python-headless on headless servers
+
+# Optional: GigE Vision acquisition backend (GenICam/Harvester).
+# Install on the production station; the code falls back gracefully without it.
+# / Необязательно: бэкенд захвата GigE Vision (GenICam/Harvester).
+# harvesters>=1.4
