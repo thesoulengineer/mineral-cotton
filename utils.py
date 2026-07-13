@@ -190,6 +190,16 @@ def default_config() -> Dict[str, Any]:
             # metric does not yield an impossibly tight band. / Пол sigma.
             "min_sigma_frac_of_mean": 0.01,
             "features": {},  # name -> {mean, sigma, side, lower, upper, n}
+            # Explicit tolerance overrides from the drawing/spec. These take
+            # precedence over the learned band at classification time — set a
+            # bound here to tolerance a feature by spec rather than by learned
+            # good-part spread. Each entry may carry "lower" and/or "upper".
+            # / Явные допуски по чертежу: имеют приоритет над обученной полосой.
+            "manual_bounds": {
+                # Circle pattern must sit within 2 mm of the block center.
+                # / Рисунок кругов — в пределах 2 мм от центра блока.
+                "base_center_offset_mm": {"upper": 2.0},
+            },
             "held_out_false_reject_rate": None,
             "measurement_repeatability": {},  # name -> sigma (gauge R&R)
         },

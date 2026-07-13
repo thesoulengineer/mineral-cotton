@@ -180,6 +180,21 @@ parts, or fix illumination/repeatability.
 калибровки: если считать порог и FRR на одних деталях, FRR≈0 бессмысленна.
 **FRR ≥ 0.5** — предупреждение: порог не обобщается.
 
+**Spec tolerances (manual overrides) / Допуски по чертежу.** To tolerance a
+feature by drawing spec instead of learned good-part spread, set an explicit
+bound in `config.json → envelope.manual_bounds`. It takes precedence over the
+learned band per side and is applied at classification time (edit + restart,
+no re-training needed). The held-out FRR is reported against the effective
+bounds. Example — the circle pattern must sit within 2 mm of the block center:
+
+```json
+"manual_bounds": { "base_center_offset_mm": { "upper": 2.0 } }
+```
+
+/ Явный допуск по чертежу задаётся в `envelope.manual_bounds`; он перекрывает
+обученную полосу и применяется при классификации (без переобучения). Пример
+выше: центровка рисунка кругов — в пределах 2 мм от центра блока.
+
 **Sidedness / Сторонность.** Tolerances are applied correctly by type:
 
 | Feature / Признак | Bound / Граница |
@@ -293,7 +308,8 @@ All tunables live in `config.json` — nothing is hard-coded. Key groups:
   `expected_circles`, `canny_low/high`, `circularity_min`, `detect_roundness_min`,
   merge/center tolerances.
 - `contrast` — `min/max_mean_intensity`, `min_std_intensity`.
-- `envelope` — `k_sigma`, `min_sigma_frac_of_mean`, `features`,
+- `envelope` — `k_sigma`, `min_sigma_frac_of_mean`, `features`, `manual_bounds`
+  (spec tolerance overrides, e.g. `base_center_offset_mm.upper = 2.0`),
   `held_out_false_reject_rate`, `measurement_repeatability`.
 - `logging` — `csv_path`, `jsonl_path`.
 
@@ -314,7 +330,9 @@ All tunables live in `config.json` — nothing is hard-coded. Key groups:
   block**? This is distinct from concentricity — the ring and hole can be
   concentric with each other yet sit off-center on the block. Anchoring to the
   ring center keeps an eccentric hole from masquerading as an off-center pattern.
-  / Центровка рисунка кругов относительно блока (отдельно от соосности).
+  Toleranced by spec at **2 mm** (`envelope.manual_bounds`), not learned.
+  / Центровка рисунка кругов относительно блока (отдельно от соосности);
+    допуск по чертежу **2 мм**.
 - `<feature>_roundness` — minor/major ellipse-axis ratio (1.0 = perfect;
   proxy for tilt/out-of-round). / Отношение осей эллипса.
 - `base_squareness_deg` (optional) — max corner-angle deviation of the square

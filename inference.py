@@ -296,22 +296,33 @@ def classify(features: Dict[str, float], envelope: Dict[str, Any]) -> Dict[str, 
     feature, its measured value, and the [lower, upper] bounds it broke.
     Features present in the measurement but absent from the envelope are
     reported (not silently ignored) so the operator knows they were unchecked.
-    / Классифицирует признаки по допуску среднее +/- k*sigma. Возвращает вердикт
-      и список нарушений. Неохваченные признаки помечаются, а не игнорируются.
+
+    Explicit ``envelope["manual_bounds"]`` (from the drawing/spec) take
+    precedence over the learned band per side, and a feature with only a manual
+    bound is still checked.
+    / Классифицирует признаки по допуску. Явные допуски manual_bounds имеют
+      приоритет над обученной полосой.
     """
     env_feats = envelope.get("features", {})
+    manual = envelope.get("manual_bounds", {})
     violations: List[Dict[str, Any]] = []
     unchecked: List[str] = []
 
     for name, value in features.items():
-        if name not in env_feats:
+        bounds = env_feats.get(name)
+        override = manual.get(name)
+        if bounds is None and override is None:
             unchecked.append(name)
             continue
-        bounds = env_feats[name]
-        # One-sided bounds carry None on the unbounded ("too good") side.
-        # / Односторонние границы имеют None на неограниченной стороне.
-        lower = bounds.get("lower")
-        upper = bounds.get("upper")
+        # Start from the learned band, then let a spec bound override each side.
+        # / Берём обученную полосу, затем допуск по чертежу перекрывает сторону.
+        lower = bounds.get("lower") if bounds else None
+        upper = bounds.get("upper") if bounds else None
+        if override is not None:
+            if "lower" in override:
+                lower = override["lower"]
+            if "upper" in override:
+                upper = override["upper"]
         v = float(value)
         below = lower is not None and v < float(lower)
         above = upper is not None and v > float(upper)

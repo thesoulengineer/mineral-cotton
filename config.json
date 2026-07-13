@@ -18,14 +18,14 @@
     "mm_per_pixel": 0.09975684117746134,
     "camera_matrix": [
       [
-        10696.981144252415,
+        10696.981128460448,
         0.0,
-        607.4667026517752
+        607.466704068488
       ],
       [
         0.0,
-        10822.69117071602,
-        604.6586605154502
+        10822.691153838317,
+        604.6586630422233
       ],
       [
         0.0,
@@ -35,11 +35,11 @@
     ],
     "dist_coeffs": [
       [
-        8.565553307186274,
-        -18379.433388792964,
-        -0.02765219014502745,
-        0.045898732360093175,
-        -19.9524039164908
+        8.56555313491903,
+        -18379.432945237502,
+        -0.02765219102280173,
+        0.04589873170803638,
+        -19.952403461348815
       ]
     ],
     "image_size": [
@@ -51,7 +51,7 @@
       "rows": 6,
       "square_size_mm": 5.0
     },
-    "rms_reproj_error_px": 0.45335237799807604
+    "rms_reproj_error_px": 0.45335237799807193
   },
   "preprocessing": {
     "median_blur_ksize": 5,
@@ -129,11 +129,11 @@
         "n": 40
       },
       "base_center_offset_mm": {
-        "mean": 0.23891,
-        "sigma": 0.1415,
+        "mean": 0.23892,
+        "sigma": 0.14151,
         "side": "upper",
         "lower": null,
-        "upper": 0.66343,
+        "upper": 0.66345,
         "n": 40
       },
       "center_hole_roundness": {
@@ -161,17 +161,22 @@
         "n": 40
       }
     },
+    "manual_bounds": {
+      "base_center_offset_mm": {
+        "upper": 2.0
+      }
+    },
     "held_out_false_reject_rate": 0.0,
     "measurement_repeatability": {
-      "center_hole_diameter_mm": 0.00193,
-      "ring_inner_diameter_mm": 0.002172,
-      "ring_outer_diameter_mm": 0.001323,
-      "concentricity_mm": 0.001071,
-      "base_squareness_deg": 0.000909,
-      "base_center_offset_mm": 0.001091,
-      "center_hole_roundness": 0.000317,
-      "ring_inner_roundness": 9.5e-05,
-      "ring_outer_roundness": 5.5e-05
+      "center_hole_diameter_mm": 0.00222,
+      "ring_inner_diameter_mm": 0.002402,
+      "ring_outer_diameter_mm": 0.001357,
+      "concentricity_mm": 0.000868,
+      "base_squareness_deg": 0.001341,
+      "base_center_offset_mm": 0.001022,
+      "center_hole_roundness": 0.000292,
+      "ring_inner_roundness": 0.000169,
+      "ring_outer_roundness": 5.9e-05
     }
   },
   "logging": {

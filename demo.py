@@ -123,7 +123,7 @@ def generate_samples() -> None:
     # (concentricity OK) but not centered to the block -> base_center_offset.
     # / Рисунок кругов смещён относительно блока: соосность OK, центровка нет.
     cv2.imwrite(os.path.join(SAMPLES_DIR, "defects", "off_center_pattern.png"),
-                render_synthetic_part(center_jitter_px=(14.0, 10.0), seed=10))  # ~2.2 mm
+                render_synthetic_part(center_jitter_px=(16.0, 12.0), seed=10))  # ~2.5 mm
     print(f"[demo] samples written under '{SAMPLES_DIR}/'")
 
 

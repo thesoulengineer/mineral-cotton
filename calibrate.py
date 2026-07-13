@@ -186,6 +186,11 @@ def build_envelope(
 
     print(f"[envelope] k={k}  features={len(features_env)}  "
           f"train_n={sum(v['n'] for v in features_env.values()) // max(1, len(features_env))}")
+    # Report any spec tolerances that override the learned band.
+    # / Показываем допуски по чертежу, перекрывающие обученную полосу.
+    for name, ov in cfg["envelope"].get("manual_bounds", {}).items():
+        parts = ", ".join(f"{side}={val}" for side, val in ov.items())
+        print(f"[envelope] manual bound (spec): {name} {parts}")
     if frr is not None:
         print(f"[envelope] held-out false-reject rate = {frr:.3f} "
               f"({rejects}/{n_holdout} good parts rejected)")
