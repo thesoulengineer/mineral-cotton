@@ -36,12 +36,13 @@ STATUS_LOW_CONTRAST = "LOW_CONTRAST"
 VERDICT_PASS = "PASS"
 VERDICT_FAIL = "FAIL"
 
-# Canonical feature names, ordered small -> large radius.
-# / Канонические имена признаков, по возрастанию радиуса.
+# Canonical feature names, ordered small -> large radius. The three concentric
+# edges are the center hole, then the ring's inner and outer diameters.
+# / Имена признаков по возрастанию радиуса: отверстие, ВД и НД кольца.
 FEATURE_NAMES: Tuple[str, str, str] = (
     "center_hole_diameter_mm",
-    "inner_pocket_diameter_mm",
-    "outer_circle_diameter_mm",
+    "ring_inner_diameter_mm",
+    "ring_outer_diameter_mm",
 )
 
 # Tolerance sidedness / Сторонность допуска:

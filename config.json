@@ -18,14 +18,14 @@
     "mm_per_pixel": 0.09975684117746134,
     "camera_matrix": [
       [
-        10696.981124568125,
+        10696.98112275625,
         0.0,
-        607.4667042320827
+        607.4667043951737
       ],
       [
         0.0,
-        10822.691149769982,
-        604.6586634252502
+        10822.691147710893,
+        604.6586637155177
       ],
       [
         0.0,
@@ -35,11 +35,11 @@
     ],
     "dist_coeffs": [
       [
-        8.565553097400072,
-        -18379.432855808747,
-        -0.02765219115200138,
-        0.04589873162849223,
-        -19.952403369846987
+        8.565553085066002,
+        -18379.432816662367,
+        -0.027652191253666133,
+        0.04589873154360494,
+        -19.95240332968838
       ]
     ],
     "image_size": [
@@ -51,7 +51,7 @@
       "rows": 6,
       "square_size_mm": 5.0
     },
-    "rms_reproj_error_px": 0.45335237799807343
+    "rms_reproj_error_px": 0.45335237799807426
   },
   "preprocessing": {
     "median_blur_ksize": 5,
@@ -89,22 +89,22 @@
     "min_sigma_frac_of_mean": 0.01,
     "features": {
       "center_hole_diameter_mm": {
-        "mean": 24.96575,
+        "mean": 24.96555,
         "sigma": 0.24966,
         "side": "two",
-        "lower": 24.21678,
-        "upper": 25.71472,
+        "lower": 24.21658,
+        "upper": 25.71452,
         "n": 40
       },
-      "inner_pocket_diameter_mm": {
-        "mean": 60.18674,
-        "sigma": 0.60187,
+      "ring_inner_diameter_mm": {
+        "mean": 60.18625,
+        "sigma": 0.60186,
         "side": "two",
-        "lower": 58.38114,
-        "upper": 61.99234,
+        "lower": 58.38066,
+        "upper": 61.99183,
         "n": 40
       },
-      "outer_circle_diameter_mm": {
+      "ring_outer_diameter_mm": {
         "mean": 76.32367,
         "sigma": 0.76324,
         "side": "two",
@@ -113,39 +113,39 @@
         "n": 40
       },
       "concentricity_mm": {
-        "mean": 0.15694,
-        "sigma": 0.01086,
+        "mean": 0.15715,
+        "sigma": 0.01084,
         "side": "upper",
         "lower": null,
-        "upper": 0.18952,
+        "upper": 0.18967,
         "n": 40
       },
       "base_squareness_deg": {
-        "mean": 0.29445,
-        "sigma": 0.01888,
+        "mean": 0.29931,
+        "sigma": 0.01733,
         "side": "upper",
         "lower": null,
-        "upper": 0.35109,
+        "upper": 0.35129,
         "n": 40
       },
       "center_hole_roundness": {
-        "mean": 0.99714,
+        "mean": 0.99713,
         "sigma": 0.00997,
         "side": "lower",
-        "lower": 0.96722,
+        "lower": 0.96721,
         "upper": null,
         "n": 40
       },
-      "inner_pocket_roundness": {
-        "mean": 0.99664,
+      "ring_inner_roundness": {
+        "mean": 0.99663,
         "sigma": 0.00997,
         "side": "lower",
-        "lower": 0.96674,
+        "lower": 0.96673,
         "upper": null,
         "n": 40
       },
-      "outer_circle_roundness": {
-        "mean": 0.99661,
+      "ring_outer_roundness": {
+        "mean": 0.99662,
         "sigma": 0.00997,
         "side": "lower",
         "lower": 0.96672,
@@ -155,14 +155,14 @@
     },
     "held_out_false_reject_rate": 0.0,
     "measurement_repeatability": {
-      "center_hole_diameter_mm": 0.002133,
-      "inner_pocket_diameter_mm": 0.002449,
-      "outer_circle_diameter_mm": 0.001768,
-      "concentricity_mm": 0.000864,
-      "base_squareness_deg": 0.001764,
-      "center_hole_roundness": 0.000328,
-      "inner_pocket_roundness": 0.000136,
-      "outer_circle_roundness": 8e-05
+      "center_hole_diameter_mm": 0.001496,
+      "ring_inner_diameter_mm": 0.002589,
+      "ring_outer_diameter_mm": 0.001755,
+      "concentricity_mm": 0.001003,
+      "base_squareness_deg": 0.001313,
+      "center_hole_roundness": 0.000305,
+      "ring_inner_roundness": 0.000112,
+      "ring_outer_roundness": 6.7e-05
     }
   },
   "logging": {

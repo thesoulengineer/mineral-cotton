@@ -30,12 +30,14 @@ import numpy as np
 # Synthetic part renderer / Синтетический рендер детали
 # --------------------------------------------------------------------------- #
 # Nominal part geometry (real drawing) at the demo scale of 0.10 mm/pixel:
-#   square base 100 mm, outer circle 75 mm, pocket 60 mm, hole 25 mm.
-# / Номинальная геометрия детали при масштабе 0.10 мм/пиксель.
+#   square base 100 mm; a ring of OD 75 mm / ID 60 mm; center hole 25 mm.
+# The three concentric circular EDGES the vision system measures are the ring's
+# outer edge (75 mm), the ring's inner edge (60 mm) and the hole (25 mm).
+# / Геометрия: основание 100 мм; кольцо НД 75 / ВД 60 мм; отверстие 25 мм.
 def render_synthetic_part(
     image_size: tuple = (1200, 1200),
-    outer_d_px: float = 750.0,     # 75 mm outer recessed circle
-    pocket_d_px: float = 600.0,    # 60 mm inner shallow pocket
+    ring_od_px: float = 750.0,     # 75 mm ring outer diameter
+    ring_id_px: float = 600.0,     # 60 mm ring inner diameter
     hole_d_px: float = 250.0,      # 25 mm center hole
     base_side_px: float = 1000.0,  # 100 mm square base
     center: Optional[tuple] = None,
@@ -47,15 +49,17 @@ def render_synthetic_part(
     edge_softness: float = 1.5,
     seed: Optional[int] = None,
 ) -> np.ndarray:
-    """Render a mono frame resembling the mineral-wool part.
+    """Render a mono frame resembling the mineral-wool part (see CAD).
 
-    Square base with three concentric circular features, representative of the
-    part under diffuse/coaxial metrology lighting: high-contrast ring edges that
-    are still slightly soft (Gaussian) with additive sensor noise, rather than a
-    razor-sharp CAD render. Parameters inject defects for testing: ``ellipticity``
-    (out-of-round), ``hole_offset_px`` (concentricity), feature diameters (size).
-    / Рендер моно-кадра при метрологическом освещении: контрастные, слегка мягкие
-      края с шумом. Параметры вносят дефекты (овальность, эксцентриситет, размер).
+    Square base with a shallow circular pocket; near the pocket rim an annular
+    ring (OD 75 mm, ID 60 mm) reads as a darker band, and a center hole sits in
+    the middle. Rendered as it would look under diffuse/coaxial metrology
+    lighting: distinct but slightly soft (Gaussian) edges with sensor noise,
+    rather than a razor-sharp CAD image. Parameters inject defects for testing:
+    ``ellipticity`` (out-of-round), ``hole_offset_px`` (concentricity), and the
+    feature diameters (size).
+    / Основание с неглубоким карманом; кольцевая канавка (НД 75 / ВД 60 мм) —
+      тёмная полоса; центральное отверстие. Параметры вносят дефекты.
     """
     rng = np.random.default_rng(seed)
     h, w = image_size
@@ -79,18 +83,20 @@ def render_synthetic_part(
         r = diameter_px / 2.0
         return (int(round(r)), int(round(r * ellipticity)))
 
-    # Nested rings with strong inter-feature contrast so edges are unambiguous.
-    # / Вложенные кольца с сильным контрастом между признаками.
-    # Outer recessed circle (mid-dark) / внешний утопленный круг.
-    cv2.ellipse(img, (int(cx), int(cy)), _axes(outer_d_px), 0, 0, 360,
-                110.0, thickness=-1)
-    # Inner shallow pocket (mid-bright) / внутренний неглубокий карман.
-    cv2.ellipse(img, (int(cx), int(cy)), _axes(pocket_d_px), 0, 0, 360,
-                165.0, thickness=-1)
+    # Concentric shades giving three unambiguous edges at OD / ID / hole.
+    # / Концентрические уровни: три чётких края на НД / ВД / отверстии.
+    # Ring band (OD..ID): a darker annulus near the pocket rim -> edge at 75 mm.
+    # / Кольцевая полоса (НД..ВД): тёмное кольцо -> край на 75 мм.
+    cv2.ellipse(img, (int(cx), int(cy)), _axes(ring_od_px), 0, 0, 360,
+                115.0, thickness=-1)
+    # Pocket floor inside the ring -> edge at 60 mm (ring inner diameter).
+    # / Дно кармана внутри кольца -> край на 60 мм (внутренний диаметр кольца).
+    cv2.ellipse(img, (int(cx), int(cy)), _axes(ring_id_px), 0, 0, 360,
+                175.0, thickness=-1)
     # Center hole (dark), optionally offset for a concentricity defect.
     # / Центральное отверстие (тёмное), со смещением для дефекта соосности.
     cv2.ellipse(img, (int(cx + hole_offset_px[0]), int(cy + hole_offset_px[1])),
-                _axes(hole_d_px), 0, 0, 360, 20.0, thickness=-1)
+                _axes(hole_d_px), 0, 0, 360, 25.0, thickness=-1)
 
     # Soften edges + sensor noise / смягчение краёв и шум сенсора.
     if edge_softness > 0:

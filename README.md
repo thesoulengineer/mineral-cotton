@@ -2,16 +2,15 @@
 # 2D-обнаружение геометрических аномалий — одна промышленная камера
 
 Production 2D dimensional inspection for a hydroponic **mineral-wool** part: a
-square base with three concentric circular features — an outer recessed circle,
-an inner shallow pocket, and a center hole. One fixed, top-down GigE Vision
-camera measures planar geometry and flags parts outside a learned tolerance
-envelope.
+square base with a shallow circular pocket containing a **ring** (outer/inner
+diameters) and a center hole — three concentric circular edges in all. One
+fixed, top-down GigE Vision camera measures planar geometry and flags parts
+outside a learned tolerance envelope.
 
 Промышленный 2D-контроль размеров детали из **минеральной ваты**: квадратное
-основание с тремя концентрическими кругами — внешний утопленный круг,
-внутренний неглубокий карман и центральное отверстие. Одна неподвижная камера
-GigE Vision (вид сверху) измеряет планарную геометрию и отбраковывает детали,
-выходящие за пределы обученного допуска.
+основание с неглубоким карманом, в котором **кольцо** (наружный/внутренний
+диаметры) и центральное отверстие — три концентрических круговых края. Одна
+неподвижная камера GigE Vision (вид сверху) измеряет планарную геометрию.
 
 **Nominal part geometry / Номинальная геометрия детали:**
 
@@ -19,9 +18,12 @@ GigE Vision (вид сверху) измеряет планарную геоме
 |-------------------|-------------------|
 | Square base / Квадратное основание | 100 × 100 mm |
 | Block height / Высота блока | 60 mm (not measured / не измеряется) |
-| Outer recessed circle Ø / Внешний круг | 75 mm |
-| Inner shallow pocket Ø / Внутренний карман | 60 mm |
+| Ring outer Ø / Наружный диаметр кольца | 75 mm |
+| Ring inner Ø / Внутренний диаметр кольца | 60 mm |
 | Center hole Ø / Центральное отверстие | 25 mm |
+
+The **ring** (OD 75 / ID 60 mm) sits near the pocket rim; the 75 mm and 60 mm
+are its outer and inner edges. / **Кольцо** (НД 75 / ВД 60 мм) у кромки кармана.
 
 > **Single 2D view only.** Depth (the 60 mm height, pocket/hole depth) is **not**
 > measurable from this nadir view. We measure planar features only — diameters,
@@ -300,8 +302,9 @@ All tunables live in `config.json` — nothing is hard-coded. Key groups:
 
 ## 11. Measured features / Измеряемые признаки
 
-- `center_hole_diameter_mm`, `inner_pocket_diameter_mm`, `outer_circle_diameter_mm`
-  — from the mean of the fitted ellipse axes × `mm_per_pixel`.
+- `center_hole_diameter_mm`, `ring_inner_diameter_mm`, `ring_outer_diameter_mm`
+  — from the mean of the fitted ellipse axes × `mm_per_pixel`. (The ring's inner
+  and outer edges are 60 mm and 75 mm; the hole is 25 mm.)
 - `concentricity_mm` — max deviation of the three fitted centers from their mean
   center. / Макс. отклонение центров от их среднего.
 - `<feature>_roundness` — minor/major ellipse-axis ratio (1.0 = perfect;

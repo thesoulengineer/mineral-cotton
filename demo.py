@@ -85,12 +85,12 @@ def generate_samples() -> None:
     rng = np.random.default_rng(42)
 
     def good_part(seed: int) -> np.ndarray:
-        # Nominal part (75/60/25 mm circles, 100 mm base at 0.10 mm/px) with
-        # small, realistic part-to-part variation.
-        # / Номинальная деталь (75/60/25 мм) с небольшой реалистичной вариацией.
+        # Nominal part (ring OD 75 / ID 60 mm, hole 25 mm, base 100 mm at
+        # 0.10 mm/px) with small, realistic part-to-part variation.
+        # / Номинальная деталь (кольцо 75/60, отверстие 25 мм) с вариацией.
         return render_synthetic_part(
-            outer_d_px=750.0 + rng.normal(0, 3.0),
-            pocket_d_px=600.0 + rng.normal(0, 2.5),
+            ring_od_px=750.0 + rng.normal(0, 3.0),
+            ring_id_px=600.0 + rng.normal(0, 2.5),
             hole_d_px=250.0 + rng.normal(0, 2.0),
             center_jitter_px=(rng.normal(0, 1.5), rng.normal(0, 1.5)),
             ellipticity=1.0 + rng.normal(0, 0.004),
